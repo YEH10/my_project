@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Masary for Delivery — Admin Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root{--bg:#071027;--card:#0f172a;--accent:#00b894;--muted:rgba(255,255,255,0.6)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui, 'Segoe UI', Roboto, Arial;color:#fff;background:linear-gradient(180deg,var(--bg),#021029);}
+  header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.04)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#00b894,#00d6a3);display:flex;align-items:center;justify-content:center;color:#022;font-weight:800}
+  h1{margin:0;font-size:1.05rem}
+  .controls{display:flex;gap:10px;align-items:center}
+  .btn{background:var(--accent);color:#022;border:none;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+
+  .wrap{display:grid;grid-template-columns:360px 1fr;width:100%;gap:18px;padding:18px}
+  /* left column (panels) */
+  .col-left{display:flex;flex-direction:column;gap:18px}
+  .card{background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .stat{padding:12px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);display:flex;gap:12px;align-items:center}
+  .stat .num{font-size:1.4rem;font-weight:800}
+  .small{font-size:0.85rem;color:var(--muted)}
+
+  .list{max-height:300px;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;text-align:right;font-size:0.9rem;border-bottom:1px dashed rgba(255,255,255,0.03)}
+  th{color:var(--muted);font-weight:700}
+  .status-dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+  .online{background:#00ff9d}
+  .offline{background:#ff7675}
+  .busy{background:#ffd166}
+
+  /* right column (map + tables) */
+  .col-right{display:flex;flex-direction:column;gap:18px}
+  #map{height:420px;border-radius:12px}
+  .row{display:flex;gap:18px}
+  .table-card{flex:1;min-height:200px}
+
+  /* responsive */
+  @media(max-width:980px){.wrap{grid-template-columns:1fr;}.col-left{order:2}.col-right{order:1}#map{height:320px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">M</div>
+    <div>
+      <h1>Masary for Delivery — Admin Dashboard</h1>
+      <div class="small">لوحة تحكم لمراقبة السائقين والرحلات والعملاء</div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="startLive"><i class="fas fa-play"></i> بدء التحديث الحي</button>
+    <button class="btn ghost" id="stopLive"><i class="fas fa-stop"></i> إيقاف</button>
+    <button class="btn ghost" id="exportCSV"><i class="fas fa-file-export"></i> تصدير العملاء</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <aside class="col-left">
+    <div class="card">
+      <div class="stats">
+        <div class="stat">
+          <div>
+            <div class="small">سائقين متصلين</div>
+            <div class="num" id="onlineDrivers">0</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div>
+            <div class="small">طلبات نشطة</div>
+            <div class="num" id="activeOrders">0</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div>
+            <div class="small">رحلات اليوم</div>
+            <div class="num" id="tripsToday">0</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div>
+            <div class="small">عدد العملاء</div>
+            <div class="num" id="customersCount">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="small">قائمة السائقين</div>
+        <div class="small"><input id="filterOnline" type="checkbox"> إظهار المتصلين فقط</div>
+      </div>
+      <div class="list">
+        <table id="driversTable">
+          <thead><tr><th>الاسم</th><th>الحالة</th><th>موقع</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="small">أحدث الطلبات الجارية</div>
+      <div class="list">
+        <table id="ordersTable">
+          <thead><tr><th>رقم</th><th>العميل</th><th>حالة</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+
+  <section class="col-right">
+    <div class="card" id="mapCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="small">خريطة المواقع (محاكاة)</div>
+        <div class="small">مركز الخريطة: عمّان (يمكن تغيير الإحداثيات)</div>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <div class="card row">
+      <div class="table-card">
+        <div class="small">قائمة العملاء (البريد الإلكتروني)</div>
+        <div class="list" style="max-height:260px;overflow:auto">
+          <table id="customersTable"><thead><tr><th>الاسم</th><th>البريد</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="small">إحصائيات سريعة</div>
+        <div style="margin-top:8px">
+          <div class="small">سائقين نشطين الآن: <strong id="statActiveDrivers">0</strong></div>
+          <div class="small">رحلات جارية: <strong id="statActiveTrips">0</strong></div>
+          <div class="small">رحلات اليوم: <strong id="statDayTrips">0</strong></div>
+          <div style="margin-top:12px">
+            <button class="btn" id="centerMap">مركز الخريطة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer style="text-align:center;padding:12px;color:var(--muted)">Masary for Delivery © 2025 — لوحة تحكم المدير</footer>
+
+<script>
+  /***** بيانات وهمية (يمكن استبدالها ببيانات حقيقية من API لاحقاً) *****/
+  const drivers = [
+    {id:1,name:'محمد العتيق',email:'m.alateq@masary.com',lat:31.9550,lng:35.9457,status:'online'},
+    {id:2,name:'أحمد الحمود',email:'a.hamoud@masary.com',lat:31.9575,lng:35.9389,status:'busy'},
+    {id:3,name:'خالد النجار',email:'k.najjar@masary.com',lat:31.9597,lng:35.9330,status:'offline'},
+    {id:4,name:'سارة محمود',email:'s.mahmoud@masary.com',lat:31.9628,lng:35.9290,status:'online'},
+    {id:5,name:'نور الهادي',email:'n.hedi@masary.com',lat:31.9655,lng:35.9250,status:'online'}
+  ];
+  const customers = [
+    {id:1,name:'يوسف',email:'y1@example.com'},
+    {id:2,name:'علي',email:'ali@example.com'},
+    {id:3,name:'مريم',email:'mariam@example.com'},
+    {id:4,name:'عائشة',email:'aisha@example.com'},
+    {id:5,name:'سليم',email:'saleem@example.com'}
+  ];
+  const orders = [
+    {id:101,customer:'يوسف',status:'قيد التوصيل'},
+    {id:102,customer:'علي',status:'قيد الاستلام'},
+    {id:103,customer:'مريم',status:'مكتمل'},
+    {id:104,customer:'عائشة',status:'قيد التوصيل'}
+  ];
+
+  // حالة التطبيق
+  let map, markers = {}, liveInterval=null;
+
+  // ملء الجداول والعدادات
+  function renderStats(){
+    const online = drivers.filter(d=>d.status!=='offline').length;
+    const activeOrders = orders.filter(o=>o.status.includes('قيد')).length;
+    const tripsToday = orders.length; // وهمي
+    document.getElementById('onlineDrivers').textContent = online;
+    document.getElementById('activeOrders').textContent = activeOrders;
+    document.getElementById('tripsToday').textContent = tripsToday;
+    document.getElementById('customersCount').textContent = customers.length;
+
+    document.getElementById('statActiveDrivers').textContent = online;
+    document.getElementById('statActiveTrips').textContent = activeOrders;
+    document.getElementById('statDayTrips').textContent = tripsToday;
+  }
+
+  function renderDriversTable(){
+    const tbody = document.querySelector('#driversTable tbody'); tbody.innerHTML='';
+    const showOnlineOnly = document.getElementById('filterOnline').checked;
+    drivers.forEach(d=>{
+      if(showOnlineOnly && d.status==='offline') return;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${d.name}</td><td><span class=\"status-dot ${d.status==='online'? 'online': d.status==='busy' ? 'busy' : 'offline'}\"></span> ${d.status}</td><td>${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  function renderCustomersTable(){
+    const tbody = document.querySelector('#customersTable tbody'); tbody.innerHTML='';
+    customers.forEach(c=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${c.name}</td><td>${c.email}</td>`;tbody.appendChild(tr);});
+  }
+  function renderOrdersTable(){
+    const tbody = document.querySelector('#ordersTable tbody'); tbody.innerHTML='';
+    orders.forEach(o=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${o.id}</td><td>${o.customer}</td><td>${o.status}</td>`;tbody.appendChild(tr);});
+  }
+
+  // خرائط Google - تذكر استبدال KEY
+  function initMap(){
+    const center = {lat:31.9585,lng:35.9350};
+    map = new google.maps.Map(document.getElementById('map'),{center,zoom:13});
+
+    // انشاء علامات السائقين
+    drivers.forEach(d=>{
+      const el = document.createElement('div');
+      el.className='driver-marker';
+      const color = d.status==='online'? '#00ff9d' : d.status==='busy' ? '#ffd166' : '#ff7675';
+      const svg = {
+        path: 'M12 2 C8 2 2 6 2 11 C2 16 12 26 12 26 C12 26 22 16 22 11 C22 6 16 2 12 2 Z',
+        fillColor: color,
+        fillOpacity:1,
+        scale:1.2,
+        strokeWeight:0.5,
+        anchor: new google.maps.Point(12,26)
+      };
+      const mk = new google.maps.Marker({position:{lat:d.lat,lng:d.lng},map,icon:svg,title:d.name});
+      markers[d.id]=mk;
+    });
+  }
+
+  // محاكاة حركة السائقين بشكل عشوائي بسيط
+  function randomMove(){
+    drivers.forEach(d=>{
+      if(d.status==='offline') return;
+      // حركة خفيفة
+      const deltaLat = (Math.random()-0.5) * 0.0006;
+      const deltaLng = (Math.random()-0.5) * 0.0008;
+      d.lat += deltaLat; d.lng += deltaLng;
+      const mk = markers[d.id];
+      if(mk) mk.setPosition({lat:d.lat,lng:d.lng});
+    });
+  }
+
+  function startLive(){
+    if(liveInterval) return;
+    liveInterval = setInterval(()=>{
+      // تحديث بيانات وهمية
+      randomMove();
+      // تحديث الجداول والعدادات
+      renderDriversTable();
+      renderStats();
+    },1500);
+    document.getElementById('startLive').disabled=true;
+  }
+  function stopLive(){ if(liveInterval){clearInterval(liveInterval);liveInterval=null;document.getElementById('startLive').disabled=false;} }
+
+  // مراكز الخريطة
+  function centerMap(){ if(map){ map.setCenter({lat:31.9585,lng:35.9350}); map.setZoom(13); }}
+
+  // export customers as CSV
+  function exportCustomersCSV(){
+    const rows = [['name','email'],...customers.map(c=>[c.name,c.email])];
+    const csv = rows.map(r=>r.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='customers.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // ربط أزرار
+  document.addEventListener('DOMContentLoaded',()=>{
+    renderStats(); renderDriversTable(); renderCustomersTable(); renderOrdersTable();
+    document.getElementById('filterOnline').addEventListener('change',renderDriversTable);
+    document.getElementById('startLive').addEventListener('click',startLive);
+    document.getElementById('stopLive').addEventListener('click',stopLive);
+    document.getElementById('centerMap').addEventListener('click',centerMap);
+    document.getElementById('exportCSV').addEventListener('click',exportCustomersCSV);
+  });
+
+  // دالة تحميل خرائط
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap"></script>
+</body>
+</html>

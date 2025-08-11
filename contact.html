@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اتصل بنا</title>
+    <link rel="stylesheet" href="contact.css">
+</head>
+<body>
+    <section class="contact-form">
+        <div class="form-container">
+            <h1>تواصل معنا</h1>
+            <p>إذا كان لديك أي أسئلة أو استفسارات، يرجى تعبئة النموذج التالي</p>
+            <form action="#" method="POST">
+                <div class="form-group">
+                    <label for="name">الاسم</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">البريد الإلكتروني</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">سبب التواصل</label>
+                    <select id="reason" name="reason" required>
+                        <option value="طلب الوصول إلى البيانات">طلب الوصول إلى البيانات</option>
+                        <option value="طلب حذف البيانات">طلب حذف البيانات</option>
+                        <option value="طلب تعديل/تحديث البيانات">طلب تعديل/تحديث البيانات</option>
+                        <option value="طلب تقيد المعالجة">طلب تقيد المعالجة</option>
+                        <option value="تقديم شكوى">تقديم شكوى</option>
+                        <option value="أي استفسار آخر">أي استفسار آخر</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="message">رسالة</label>
+                    <textarea id="message" name="message" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox">
+                        <input type="checkbox" required> أنا لست روبوتًا
+                    </label>
+                </div>
+
+                <button type="submit">إرسال</button>
+            </form>
+        </div>
+    </section>
+
+
+        <footer>
+        <p>جميع الحقوق محفوظة © 2025 Masary for Delivery</p>
+    </footer>
+    
+</body>
+</html>

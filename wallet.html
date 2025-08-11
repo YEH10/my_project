@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محفظة Masary</title>
+    <link rel="stylesheet" href="wallet.css">
+    <script src="script.js"></script>
+</head>
+<body>
+    <header>
+        <div class="navbar">
+            <div class="logo">Masary for Delivery</div>
+            <div class="user-account">
+                مرحبًا، <span id="user-name">[اسم المستخدم]</span> <a href="booking.html">حسابك</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="wallet-section">
+        <div class="wallet-info">
+            <h1>محفظتك في Masary</h1>
+            <p>رصيدك الحالي: <span id="balance">100.00</span> د.ا</p>
+        </div>
+
+        <div class="add-card">
+            <h2>إضافة بطاقة بنكية</h2>
+            <form id="card-form">
+                <label for="card-number">رقم البطاقة:</label>
+                <input type="text" id="card-number" placeholder="xxxx-xxxx-xxxx-xxxx" required>
+
+                <label for="expiry-date">تاريخ الانتهاء:</label>
+                <input type="month" id="expiry-date" required>
+
+                <label for="cvv">رمز الأمان (CVV):</label>
+                <input type="text" id="cvv" placeholder="xxx" required>
+
+                <button type="submit" class="btn">إضافة بطاقة</button>
+            </form>
+        </div>
+
+        <div class="charge-wallet">
+            <h2>شحن المحفظة</h2>
+            <form id="charge-form">
+                <label for="charge-amount">المبلغ:</label>
+                <input type="number" id="charge-amount" placeholder="أدخل المبلغ" required>
+
+                <button type="submit" class="btn">شحن المحفظة</button>
+            </form>
+        </div>
+
+        <div id="notification" class="notification"></div>
+    </section>
+
+    <footer>
+        <p>جميع الحقوق محفوظة © 2025 Masary for Delivery</p>
+    </footer>
+</body>
+</html>

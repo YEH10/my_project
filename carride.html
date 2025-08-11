@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>محاكاة وصول السيارة — Track</title>
+  <style>
+    /* تصميم بسيط وجميل */
+    :root{--bg:#0f172a;--card:#071133;--accent:#00b894}
+    body{margin:0;font-family:system-ui, "Segoe UI", Roboto, Arial;color:#fff;background:linear-gradient(180deg,#071133 0%, #021029 100%);}
+    .container{display:flex;flex-direction:column;height:100vh;gap:12px;padding:14px}
+    header{display:flex;align-items:center;justify-content:space-between}
+    h1{font-size:1.1rem;margin:0}
+    .controls{display:flex;gap:10px;align-items:center}
+    button{background:var(--accent);border:none;padding:10px 14px;border-radius:10px;font-weight:600;color:#022;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.08);color:#fff}
+    .card{background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center}
+    #map{height:70vh;border-radius:12px;border:4px solid rgba(255,255,255,0.02)}
+    .info{min-width:220px}
+    .timer{font-size:1.6rem;font-weight:700}
+    .small{font-size:0.85rem;color:rgba(255,255,255,0.7)}
+    .seat-badge{background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:999px}
+    footer{font-size:0.8rem;text-align:center;color:rgba(255,255,255,0.6)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>محاكاة وصول السيارة — تتبّع السيارة مع عدّاد الوصول</h1>
+      <div class="controls">
+        <div class="card info">
+          <div class="small">الوقت المتبقي للوصول</div>
+          <div id="countdown" class="timer">--:--</div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <div class="small">المقاعد المتبقية</div>
+            <div class="seat-badge" id="seats">3 / 4</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button id="startBtn">ابدأ</button>
+          <button id="cancelBtn" class="ghost">إلغاء الحجز</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="map"></div>
+
+  </div>
+
+  <script>
+    // ملاحظات سريعة:
+    // 1) استبدل "YOUR_API_KEY_HERE" بمفتاح API حقيقي في تاغ سكربت أسفل الملف.
+    // 2) هذا المثال يستخدم مسارًا ثابتًا (إحداثيات) لمحاكاة حركة السيارة.
+
+    let map, marker, routePolyline, animationId;
+    let route = [
+      // مثال نقاط في عمّان - يمكنك تعديلها للإحداثيات التي تريدها
+      {lat:31.9550, lng:35.9457},
+      {lat:31.9575, lng:35.9389},
+      {lat:31.9597, lng:35.9330},
+      {lat:31.9628, lng:35.9290},
+      {lat:31.9655, lng:35.9250}
+    ];
+
+    // إعدادات الحركة
+    const updateInterval = 80; // ms between updates
+    const speedMetersPerSec = 10; // سرعة وهمية (متر/ث)
+
+    // حالة المحاكاة
+    let sim = {
+      playing: false,
+      currentIndex: 0,
+      t: 0, // progress بين نقطتين (0..1)
+      remainingSeconds: 0
+    };
+
+    function initMap(){
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: route[0],
+        zoom: 14,
+        disableDefaultUI: false,
+      });
+
+      // خط المسار
+      routePolyline = new google.maps.Polyline({
+        path: route,
+        geodesic: true,
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+      });
+      routePolyline.setMap(map);
+
+      // علامة السيارة (استعملنا أيقونة svg بسيطة)
+      const carSvg = {
+        path: 'M10 2 H 54 L 62 20 V 34 L 54 46 H 10 L 2 34 V 20 Z',
+        fillColor: '#ffdd57',
+        fillOpacity: 1,
+        scale: 0.5,
+        strokeWeight: 0.5,
+        anchor: new google.maps.Point(32, 24),
+      };
+
+      marker = new google.maps.Marker({
+        position: route[0],
+        map,
+        title: 'مركبتك',
+        optimized: false,
+        icon: carSvg
+      });
+
+      // ليظهر الخريطة كاملة
+      const bounds = new google.maps.LatLngBounds();
+      route.forEach(p => bounds.extend(p));
+      map.fitBounds(bounds);
+
+      // إعداد أزرار
+      document.getElementById('startBtn').addEventListener('click', startSimulation);
+      document.getElementById('cancelBtn').addEventListener('click', cancelSimulation);
+    }
+
+    // دالة لحساب المسافة التقريبية بين نقطتين (متر) - Haversine
+    function haversineDistance(a, b){
+      const R = 6371000; // earth radius meters
+      const toRad = d => d * Math.PI / 180;
+      const dLat = toRad(b.lat - a.lat);
+      const dLon = toRad(b.lng - a.lng);
+      const lat1 = toRad(a.lat);
+      const lat2 = toRad(b.lat);
+      const sinDLat = Math.sin(dLat/2);
+      const sinDLon = Math.sin(dLon/2);
+      const AA = sinDLat*sinDLat + Math.cos(lat1)*Math.cos(lat2)*sinDLon*sinDLon;
+      const C = 2*Math.atan2(Math.sqrt(AA), Math.sqrt(1-AA));
+      return R * C;
+    }
+
+    // تحديث موقع المركبة بشكل متحرك
+    function stepSimulation(){
+      if(!sim.playing) return;
+
+      // نقطة البداية والنهاية الحالية
+      const A = route[sim.currentIndex];
+      const B = route[Math.min(sim.currentIndex+1, route.length-1)];
+      const dist = haversineDistance(A,B);
+
+      // حسب السرعة ووقت التحديث نحدّث التقدّم t
+      const dt = (updateInterval/1000) * speedMetersPerSec; // meters moved this step
+      const progressDelta = dist > 0 ? dt / dist : 1;
+      sim.t += progressDelta;
+
+      if(sim.t >= 1){
+        // ذهبت للنقطة التالية
+        sim.currentIndex = Math.min(sim.currentIndex+1, route.length-1);
+        sim.t = 0;
+      }
+
+      // نحسب الإحداثيات الحالية بالاعتراض الخطي البسيط
+      const curLat = A.lat + (B.lat - A.lat) * sim.t;
+      const curLng = A.lng + (B.lng - A.lng) * sim.t;
+      const curPos = {lat: curLat, lng: curLng};
+      marker.setPosition(curPos);
+
+      // عمل دوران بسيط للرمز (ليس دقيق جغرافيًا لكن يعطي إحساس بالحركة)
+      // سنستخدم اتجاه من A إلى B
+      const angle = Math.atan2(B.lng - A.lng, B.lat - A.lat) * (180/Math.PI);
+      marker.setIcon(Object.assign({}, marker.getIcon(), {rotation: angle}));
+
+      // تحريك الكاميرا تدريجيًا نحو المركبة
+      map.panTo(curPos);
+
+      // تحديث العداد كل ثانية
+      // نقوم بإنقاص الثواني إذا كانت مرّت 1000ms
+      const now = Date.now();
+
+      // نستخدم setTimeout بدلاً من requestAnimationFrame لتبسيط المزامنة
+      animationId = setTimeout(stepSimulation, updateInterval);
+    }
+
+    function startSimulation(){
+      if(sim.playing) return;
+      // نحدد وقت وصول عشوائي بين 1 و 7 دقائق
+      const minutes = Math.floor(Math.random()*7) + 1;
+      sim.remainingSeconds = minutes * 60;
+      updateCountdownDisplay();
+
+      // إعادة تهيئة المسار
+      sim.playing = true;
+      sim.currentIndex = 0;
+      sim.t = 0;
+      marker.setPosition(route[0]);
+
+      // تحديث كل ثانية للعداد
+      countdownTick();
+
+      // بدء حركة المركبة
+      stepSimulation();
+
+      document.getElementById('startBtn').disabled = true;
+    }
+
+    function cancelSimulation(){
+      if(!sim.playing) return;
+      sim.playing = false;
+      clearTimeout(animationId);
+      // إيقاف عداد
+      sim.remainingSeconds = 0;
+      updateCountdownDisplay();
+      document.getElementById('startBtn').disabled = false;
+      alert('تم إلغاء الحجز — سيتم احتساب مخالفة حسب النظام (مثال).');
+    }
+
+    // تحديث واجهة العداد
+    function updateCountdownDisplay(){
+      const el = document.getElementById('countdown');
+      if(sim.remainingSeconds <= 0){
+        el.textContent = '--:--';
+      } else {
+        const mm = Math.floor(sim.remainingSeconds/60).toString().padStart(2,'0');
+        const ss = (sim.remainingSeconds%60).toString().padStart(2,'0');
+        el.textContent = mm + ':' + ss;
+      }
+    }
+
+    // كل ثانية نقلل الثواني الساخنة
+    let countdownInterval = null;
+    function countdownTick(){
+      if(countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(()=>{
+        if(!sim.playing){ clearInterval(countdownInterval); return; }
+        sim.remainingSeconds = Math.max(0, sim.remainingSeconds - 1);
+        updateCountdownDisplay();
+        if(sim.remainingSeconds === 0){
+          // وصلت السيارة!
+          sim.playing = false;
+          clearTimeout(animationId);
+          clearInterval(countdownInterval);
+          document.getElementById('startBtn').disabled = false;
+          alert('وصلت المركبة 🟢');
+        }
+      }, 1000);
+    }
+
+    // تحميل خرائط Google — تذكّر استبدال KEY
+  </script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masary for Delivery</title>
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <header>
+        <div class="navbar">
+            <div class="logo">Masary for Delivery</div>
+            <div class="user-account">
+                مرحبًا، <span id="user-name">[اسم المستخدم]</span> <a href="index.html">تسجيل الخروج</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="main">
+        <h1>مرحبًا بك في Masary for Delivery!</h1>
+        <p>نحن هنا لتقديم خدمات التوصيل بأسلوب مبتكر وسريع.</p>
+        
+        <div class="about">
+            <h2>عن الموقع</h2>
+            <p>Masary for Delivery هو منصة توصيل توفر لك تجارب سريعة وآمنة لتلبية جميع احتياجاتك اليومية.</p>
+        </div>
+
+        <!-- قسم المناطق المغطاة -->
+        <div class="coverage">
+            <h2>المناطق المغطاة</h2>
+            <p>حاليًا في: عمان ، إربد ، الطفيلة</p>
+            <p>قريبًا: جميع محافظات المملكة</p>
+        </div>
+        
+        <!-- زر ابدأ الحجز -->
+        <div class="start-booking">
+            <a href="booking.html" class="btn">ابدأ الحجز</a>
+                        <a href="#" id="driverBtn" class="btn">سائق</a>
+
+        </div>
+
+<script>
+  document.getElementById('driverBtn').addEventListener('click', function(event) {
+    event.preventDefault(); // يمنع الرابط الافتراضي
+    const password = prompt('الرجاء إدخال كلمة السر للدخول:');
+    if (password === '12345') {
+      window.location.href = 'driver.html';
+    } else {
+      alert('كلمة السر غير صحيحة!');
+    }
+  });
+</script>
+    </section>
+
+    <footer>
+        <p>جميع الحقوق محفوظة © 2025 Masary for Delivery</p>
+    </footer>
+
+</body>
+</html>

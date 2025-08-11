@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>صفحة السائق - استقبال الطلبات مع خريطة</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Montserrat', sans-serif;
+    margin:0;
+    background: #f5f7fa;
+    color: #333;
+  }
+  header {
+    background: #0b5ed7;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  header img.avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid white;
+  }
+  header h1 {
+    font-weight: 600;
+    font-size: 1.4rem;
+  }
+  main {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 0 15px 40px;
+  }
+  section {
+    background: white;
+    border-radius: 8px;
+    padding: 15px 20px;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+    margin-bottom: 25px;
+  }
+  h2 {
+    margin-bottom: 15px;
+    color: #0b5ed7;
+    font-weight: 600;
+  }
+  .request, .active-request {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+  }
+  .request:last-child, .active-request:last-child {
+    border-bottom: none;
+  }
+  .info {
+    flex: 1 1 60%;
+    min-width: 250px;
+  }
+  .info p {
+    margin: 3px 0;
+    font-size: 0.95rem;
+  }
+  .buttons {
+    flex: 1 1 35%;
+    text-align: left;
+    min-width: 200px;
+  }
+  button {
+    cursor: pointer;
+    padding: 8px 15px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+    color: white;
+  }
+  button.accept {
+    background-color: #198754; /* أخضر */
+  }
+  button.accept:hover {
+    background-color: #157347;
+  }
+  button.reject {
+    background-color: #dc3545; /* أحمر */
+  }
+  button.reject:hover {
+    background-color: #a71d2a;
+  }
+  .status {
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 15px;
+    display: inline-block;
+    min-width: 90px;
+    text-align: center;
+    color: white;
+    font-size: 0.9rem;
+  }
+  .status.accepted {
+    background-color: #198754; /* أخضر */
+  }
+  .status.rejected {
+    background-color: #dc3545; /* أحمر */
+  }
+  .status.pending {
+    background-color: #0d6efd; /* أزرق */
+  }
+
+  /* استجابة */
+  @media (max-width: 768px) {
+    .request, .active-request {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .buttons {
+      margin-top: 10px;
+      text-align: right;
+      width: 100%;
+    }
+    button {
+      margin-left: 0;
+      margin-right: 10px;
+      width: 48%;
+    }
+  }
+  /* خريطة */
+  #map {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <img class="avatar" src="https://i.ibb.co/4g2W2Jj/avatar-driver.png" alt="صورة السائق" />
+  <h1>     Masary for Delivery</h1>
+</header>
+<main>
+  <section id="new-requests">
+    <h2>الطلبات الجديدة</h2>
+    <!-- طلبات جديدة هنا -->
+  </section>
+
+  <section id="active-requests">
+    <h2>الطلبات النشطة</h2>
+    <!-- الطلبات المقبولة تظهر هنا -->
+  </section>
+
+  <section id="map-section" style="display:none;">
+    <h2>موقع العميل على الخريطة</h2>
+    <div id="map"></div>
+  </section>
+</main>
+
+<script>
+  // بيانات طلبات مبدئية مع إحداثيات وهمية لكل طلب (للمحاكاة)
+  const requests = [
+    { id: 1, name: "محمد العتيبي", destination: "الدوار الرابع", time: "12:30 مساءً", phone: "0791234567", lat: 31.951569, lng: 35.923962 },
+    { id: 2, name: "سعاد الحربي", destination: "شارع الملك حسين", time: "01:00 مساءً", phone: "0789876543", lat: 31.963158, lng: 35.930359 },
+    { id: 3, name: "أحمد الخطيب", destination: "شارع الجامعة", time: "01:30 مساءً", phone: "0771122334", lat: 31.957349, lng: 35.914093 },
+  ];
+
+  const newRequestsSection = document.getElementById('new-requests');
+  const activeRequestsSection = document.getElementById('active-requests');
+  const mapSection = document.getElementById('map-section');
+  let map, marker, animationInterval;
+
+  let activeRequests = [];
+  let currentActiveRequest = null;
+
+  function renderNewRequests() {
+    newRequestsSection.innerHTML = '<h2>الطلبات الجديدة</h2>';
+    if(requests.length === 0) {
+      newRequestsSection.innerHTML += '<p>لا توجد طلبات جديدة حالياً.</p>';
+      return;
+    }
+    requests.forEach(req => {
+      const div = document.createElement('div');
+      div.classList.add('request');
+      div.innerHTML = `
+        <div class="info">
+          <p><strong>الاسم:</strong> ${req.name}</p>
+          <p><strong>الوجهة:</strong> ${req.destination}</p>
+          <p><strong>الوقت:</strong> ${req.time}</p>
+          <p><strong>رقم الهاتف:</strong> ${req.phone}</p>
+        </div>
+        <div class="buttons">
+          <button class="accept" onclick="acceptRequest(${req.id})">قبول</button>
+          <button class="reject" onclick="rejectRequest(${req.id})">رفض</button>
+        </div>
+      `;
+      newRequestsSection.appendChild(div);
+    });
+  }
+
+  function renderActiveRequests() {
+    activeRequestsSection.innerHTML = '<h2>الطلبات النشطة</h2>';
+    if(activeRequests.length === 0) {
+      activeRequestsSection.innerHTML += '<p>لا توجد طلبات نشطة حالياً.</p>';
+      mapSection.style.display = 'none';
+      clearAnimation();
+      return;
+    }
+    activeRequests.forEach(req => {
+      const div = document.createElement('div');
+      div.classList.add('active-request');
+      div.innerHTML = `
+        <div class="info">
+          <p><strong>الاسم:</strong> ${req.name}</p>
+          <p><strong>الوجهة:</strong> ${req.destination}</p>
+          <p><strong>الوقت:</strong> ${req.time}</p>
+          <p><strong>رقم الهاتف:</strong> ${req.phone}</p>
+        </div>
+        <div>
+          <span class="status accepted">تم القبول</span>
+        </div>
+      `;
+      activeRequestsSection.appendChild(div);
+    });
+    if(currentActiveRequest) {
+      showMap(currentActiveRequest.lat, currentActiveRequest.lng);
+    }
+  }
+
+  function acceptRequest(id) {
+    // نقل الطلب من الجديدة للنشطة
+    const index = requests.findIndex(r => r.id === id);
+    if(index !== -1) {
+      const req = requests.splice(index, 1)[0];
+      activeRequests.push(req);
+      currentActiveRequest = req;
+      renderNewRequests();
+      renderActiveRequests();
+    }
+  }
+
+  function rejectRequest(id) {
+    // حذف الطلب من الجديدة فقط
+    const index = requests.findIndex(r => r.id === id);
+    if(index !== -1) {
+      requests.splice(index, 1);
+      renderNewRequests();
+    }
+  }
+
+  function showMap(lat, lng) {
+    mapSection.style.display = 'block';
+    if(!map) {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat, lng },
+        zoom: 15,
+      });
+      marker = new google.maps.Marker({
+        position: { lat, lng },
+        map: map,
+        title: "موقع العميل",
+      });
+      animateMarker();
+    } else {
+      map.setCenter({ lat, lng });
+      marker.setPosition({ lat, lng });
+      clearAnimation();
+      animateMarker();
+    }
+  }
+
+  function animateMarker() {
+    let direction = 1;
+    let count = 0;
+    animationInterval = setInterval(() => {
+      if(count > 10) direction = -1;
+      if(count < 0) direction = 1;
+      count += direction;
+      const latOffset = count * 0.00002;
+      const newLat = currentActiveRequest.lat + latOffset;
+      marker.setPosition({ lat: newLat, lng: currentActiveRequest.lng });
+    }, 300);
+  }
+
+  function clearAnimation() {
+    if(animationInterval) {
+      clearInterval(animationInterval);
+      animationInterval = null;
+    }
+  }
+
+  // تحميل الطلبات عند فتح الصفحة
+  renderNewRequests();
+  renderActiveRequests();
+</script>
+
+<!-- تضمين Google Maps API -->
+<script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap"
+  async
+></script>
+
+<script>
+  // دالة initMap فارغة حتى لا تظهر أخطاء قبل تحميل الخريطة
+  function initMap() {}
+</script>
+</body>
+</html>
